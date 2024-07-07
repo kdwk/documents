@@ -1,0 +1,23 @@
+[package]
+name = "documents"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+keywords = [
+    "document",
+    "file",
+    "filesystem",
+    "open",
+    "path",
+    "beginner",
+    "ergonomics",
+]
+categories = ["filesystem"]
+description = "An easy-to-use and ergonomic library for dealing with files."
+repository = "https://github.com/kdwk/documents"
+readme = "README.md"
+
+[dependencies]
+directories = "5.0.1"
+extend = "1.2.0"
+open = "5.2.0"
