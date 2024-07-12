@@ -10,6 +10,21 @@ use std::io::{BufRead, BufReader, Lines, Write};
 use std::ops::{Index, IndexMut};
 use std::path::{Path, PathBuf};
 
+/// The mode of opening the file. Describes what you are permitted to do with it.
+///
+/// Read: permission to read the file only.
+///
+/// Replace: permission wipe the file and replace its contents.
+///
+/// Append: permission to add content to the end of the file.
+///
+/// ReadReplace: permission to read the file, and also to wipe the file and replace its contents.
+///
+/// ReadAppend: permission to read the file, and also to add content to the end of the file.
+///
+/// Read, ReadReplace, ReadAppend are `read`-able.
+///
+/// Replace, Append, ReadReplace, ReadAppend are `write`-able.
 #[derive(Debug, Clone, Copy)]
 pub enum Mode {
     Read,
@@ -20,18 +35,38 @@ pub enum Mode {
 }
 
 impl Mode {
+    /// ```
+    /// match self {
+    ///     Self::Read | Self::ReadReplace | Self::ReadAppend => true,
+    ///     _ => false,
+    /// }
+    /// ```
     pub fn readable(&self) -> bool {
         match self {
             Self::Read | Self::ReadReplace | Self::ReadAppend => true,
             _ => false,
         }
     }
+
+    /// ```
+    /// match self {
+    ///     Self::Replace | Self::Append | Self::ReadAppend | Self::ReadReplace => true,
+    ///     _ => false,
+    /// }
+    /// ```
     pub fn writable(&self) -> bool {
         match self {
             Self::Replace | Self::Append | Self::ReadAppend | Self::ReadReplace => true,
             _ => false,
         }
     }
+
+    /// ```
+    /// match self {
+    ///     Self::Append | Self::ReadAppend => true,
+    ///     _ => false,
+    /// }
+    /// ```
     pub fn appendable(&self) -> bool {
         match self {
             Self::Append | Self::ReadAppend => true,
@@ -40,6 +75,9 @@ impl Mode {
     }
 }
 
+/// A type that represents well-known folders that are likely to exist on most devices.
+///
+///
 pub enum Folder<'a> {
     User(User<'a>),
     Project((Project<'a>, &'a str, &'a str, &'a str)),
@@ -230,10 +268,22 @@ impl Error for DocumentError {
     }
 }
 
+/// A type that represents a file.
+///
+/// Create an instance of this type with [Document::at](Document::at) or [Document::from_path](Document::from_path).
+/// Do not use direct instantiation.
+///
+/// Optionally, use [with](with) to create Documents for use within a scope --- it's easier!
+///
+/// Note that a Document is not the actual file. Creating an instance of this type will not create a new file.
+/// To specify whether to do so, use the `create` parameter of [Document::at](Document::at) or [Document::from_path](Document::from_path).
 #[derive(Debug, Clone)]
 pub struct Document {
+    /// The alias of this Document in a [Map](Map), used to retrieve this Document from the Map.
     alias: String,
+    /// The [PathBuf](PathBuf) of this Document. You can use [.display()](Pathbuf::display) to convert it to something printable.
     pathbuf: PathBuf,
+    /// The [create policy](Create) of this Document, used to signal whether a new file should be created when creating an instance of Document.
     create_policy: Create,
 }
 
@@ -367,6 +417,18 @@ impl Document {
         }
         Ok(pathbuf)
     }
+
+    /// Create an instance of [Document](Document) from a [Folder](Folder) location.
+    ///
+    /// location: the [Folder](Folder) which the file is in, e.g. `User(Pictures(&["Screenshots"]))` or `Project(Data(&[])).with_id("com", "github.kdwk", "Spidey")`.
+    ///
+    /// filename: the name of the file with its file extension. Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    ///
+    /// create: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
+    ///
+    /// The file name will be used as the [alias](Document::alias) of this Document. Change with [.alias()](Document::alias).
+    ///
+    /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
     pub fn at(
         location: Folder,
         filename: impl Display,
@@ -381,7 +443,21 @@ impl Document {
             create_policy: create,
         })
     }
-    pub fn from_path(
+
+    /// Create an instance of [Document](Document) from the full file path.
+    ///
+    /// DANGER: the format of file paths and specific location of files can differ between computers!
+    /// Always prefer to put files in well-known folders like the Downloads folder or your project's data folder --- use [Document::at](Document::at) for that.
+    /// Use this function only if you are very confident the path is valid, such as if other libraries provide file paths for you to use.
+    ///
+    /// path: the full file path of the file. Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    ///
+    /// alias: the alias used to retrieve this Document from a [Map](Map). Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    ///
+    /// create: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
+    ///
+    /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
+    pub fn at_path(
         path: impl Display,
         alias: impl Display,
         create: Create,
@@ -405,6 +481,10 @@ impl Document {
             Err(_) => Err(DocumentError::CouldNotOpenFile(self.path()))?,
         }
     }
+
+    /// Launch the file with the default app. Equivalent to opening the file from a file manager.
+    ///
+    /// Returns an error if the file could not be launched.
     pub fn launch_with_default_app(&self) -> Result<&Self, Box<dyn Error>> {
         if let Err(_) = open::that_detached(self.path()) {
             Err(DocumentError::CouldNotLaunchFile(self.path()))?
@@ -412,23 +492,58 @@ impl Document {
             Ok(self)
         }
     }
+
+    /// Convert this Document to a [File](std::fs::File) (the standard library's type to represent a file). Useful if other functions or libraries expect a File,
+    /// or if you need to perform operations on the file not supported by this Document.
+    ///
+    /// permissions: the [Mode](Mode) with which the file will be opened, can be `Mode::Read`, `Mode::Replace`, `Mode::Append`, `Mode::ReadReplace` and `Mode::ReadAppend`.
+    ///
+    /// Returns an error if the file cannot be opened.
     pub fn file(&mut self, permissions: Mode) -> Result<File, Box<dyn Error>> {
         self.open_file(permissions)
     }
+
+    /// Add content to the end of the file represented by this Document.
+    ///
+    /// content: bytes to be appended. If you have a string literal add `b` to convert it to bytes (`b"example"`); if you have an `&str` or `String` convert with `.as_bytes()`.
+    /// If other libraries provide you with bytes, e.g. from a download operation, you can plug it in as-is.
+    ///
+    /// Returns an error if the file cannot be opened or the write operation fails.
     pub fn append(&mut self, content: &[u8]) -> Result<&mut Self, Box<dyn Error>> {
         let mut file = self.open_file(Mode::Append)?;
         file.write_all(content)?;
         Ok(self)
     }
+
+    /// Replace the contents of the file represented by this Document.
+    ///
+    /// DANGER: irreversibly wipes out the entire file before writing new content.
+    ///
+    /// content: bytes to overwrite with. If you have a string literal add `b` to convert it to bytes (`b"example"`); if you have an `&str` or `String` convert with `.as_bytes()`.
+    /// If other libraries provide you with bytes, e.g. from a download operation, you can plug it in as-is.
+    ///
+    /// Returns an error if the file cannot be opened or the write operation fails.
     pub fn replace_with(&mut self, content: &[u8]) -> Result<&mut Self, Box<dyn Error>> {
         let mut file = self.open_file(Mode::Replace)?;
         file.write_all(content)?;
         Ok(self)
     }
+
+    /// Returns an iterator over the lines of the file represented by this Document.
+    ///
+    /// Useful for processing the contents of file line by line.
+    ///
+    /// ```
+    /// for line in document.lines().expect("Could not read lines")  {
+    ///     println!("{line}");
+    /// }
+    /// ```
     pub fn lines(&self) -> Result<Lines<BufReader<File>>, Box<dyn Error>> {
         let file = self.open_file(Mode::Read)?;
         Ok(BufReader::new(file).lines())
     }
+
+    /// The file extension of the file represented by this Document.
     pub fn extension(&self) -> String {
         self.pathbuf
             .extension()
