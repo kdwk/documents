@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 /// Read, ReadReplace, ReadAppend are `read`-able.
 ///
 /// Replace, Append, ReadReplace, ReadAppend are `write`-able.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mode {
     Read,
     Replace,
@@ -77,7 +77,14 @@ impl Mode {
 
 /// A type that represents well-known folders that are likely to exist on most devices.
 ///
+/// See also [User](User) and [Project](Project)
 ///
+/// e.g.
+///
+/// `User(Pictures(&[]))`: the user's Pictures directory
+///
+/// `Project(Data(&["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data directory, with app ID com.github.kdwk.Spidey (see [Project](Project))
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Folder<'a> {
     User(User<'a>),
     Project((Project<'a>, &'a str, &'a str, &'a str)),
@@ -186,6 +193,10 @@ impl<'a> Folder<'a> {
     }
 }
 
+/// A type that represents well-known user folders.
+///
+/// Put subdirectories under the respective folders like so: `Pictures(&["Screenshots", "July", "14"])`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum User<'a> {
     Documents(&'a [&'a str]),
     Pictures(&'a [&'a str]),
@@ -194,13 +205,29 @@ pub enum User<'a> {
     Home(&'a [&'a str]),
 }
 
+/// A type that represents the application's project folder. An isolated folder is usually provided per app per user by the operating system for apps to put internal files.
+///
+/// DANGER: if your software is not a registered app on the operating system, this folder will not exist.
+/// In this case, consider using a custom subfolder under a [User](User) folder instead.
+///
+/// Note: use this type with [`.with_id(...)`](Project::with_id) to let [`with(...)`](with) get the folder which is assigned to your app by the operating system.
+///
+/// Put subdirectories under the respective folders like so: `Data(&["Ad Filters", "English"])`
+///
+/// Config: place configuration files here, such as app settings.
+///
+/// Data: place data files here, such as a web browser's adblock filters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Project<'a> {
     Config(&'a [&'a str]),
     Data(&'a [&'a str]),
 }
 
 impl<'a> Project<'a> {
-    /// The app ID should have the reverse-DNS format of "com.example.App", where "com" is the qualifier, "example" is the organization and "App" is the application
+    /// The app ID should have the reverse-DNS format of "com.example.App", where "com" is the qualifier, "example" is the organization and "App" is the app's name.
+    ///
+    /// Note: this app ID should be the same app ID you provide to the operating system to uniquely identify your app.
+    /// Windows calls this ID the Application User Model ID, Apple platforms call this the Bundle ID, Android and Linux call this the App ID.
     pub fn with_id(
         self,
         qualifier: &'a str,
@@ -211,14 +238,23 @@ impl<'a> Project<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+/// Whether to create a new file to be represented by this Document.
+///
+/// No: do not create a new file under any circumstances.
+///
+/// OnlyIfNotExists: create a new file if the
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Create {
     No,
     OnlyIfNotExists,
     AutoRenameIfExists,
 }
 
-#[derive(Debug)]
+/// This library's error types.
+///
+/// Note: functions in this library will not actually return this concrete error type.
+/// Instead a Box<dyn Error> will be returned. Print it to the console to see a description of the error.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DocumentError {
     UserDirsNotFound,
     PicturesDirNotFound,
@@ -277,7 +313,7 @@ impl Error for DocumentError {
 ///
 /// Note that a Document is not the actual file. Creating an instance of this type will not create a new file.
 /// To specify whether to do so, use the `create` parameter of [Document::at](Document::at) or [Document::from_path](Document::from_path).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Document {
     /// The alias of this Document in a [Map](Map), used to retrieve this Document from the Map.
     alias: String,
@@ -556,6 +592,12 @@ impl Document {
 
 #[ext(pub)]
 impl Result<Document, Box<dyn Error>> {
+    /// Sets the alias of this Document if this Document has created successfully. Use "_" to instruct [`with(...)`](with) to skip adding this Document to the [Map](Map).
+    ///
+    /// Note: the alias is used to identify this Document in a [Map](Map).
+    /// Do not provide the same alias for multiple Documents.
+    ///
+    /// Returns an error if this Document has not been created successfully.
     fn alias(self, alias: &str) -> Result<Document, Box<dyn Error>> {
         match self {
             Ok(mut document) => {
@@ -565,6 +607,14 @@ impl Result<Document, Box<dyn Error>> {
             Err(error) => Err(error),
         }
     }
+
+    /// Suggest a rename of this Document if there is already a file at that path.
+    ///
+    /// e.g. if `picture.png` already exists, this will return `picture(1).png`. If `picture(1).png` already exists, this will return `picture(2).png`, etc.
+    ///
+    /// Returns the same path if there is no existing file at that path.
+    ///
+    /// Returns an empty String if this Document has not been created successfully.
     fn suggest_rename(&self) -> String {
         match self {
             Ok(document) => {
@@ -589,6 +639,9 @@ impl Result<Document, Box<dyn Error>> {
 
 #[ext(pub)]
 impl Lines<BufReader<File>> {
+    /// Print out this file line by line.
+    ///
+    /// Returns an error if the line cannot be read.
     fn print(self) -> Result<(), Box<dyn Error>> {
         for line in self {
             println!("{}", line?);
