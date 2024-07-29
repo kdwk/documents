@@ -12,15 +12,15 @@ use std::path::{Path, PathBuf};
 
 /// The mode of opening the file. Describes what you are permitted to do with it.
 ///
-/// Read: permission to read the file only.
+/// *Read*: permission to read the file only.
 ///
-/// Replace: permission wipe the file and replace its contents.
+/// *Replace*: permission wipe the file and replace its contents.
 ///
-/// Append: permission to add content to the end of the file.
+/// *Append*: permission to add content to the end of the file.
 ///
-/// ReadReplace: permission to read the file, and also to wipe the file and replace its contents.
+/// *ReadReplace*: permission to read the file, and also to wipe the file and replace its contents.
 ///
-/// ReadAppend: permission to read the file, and also to add content to the end of the file.
+/// *ReadAppend*: permission to read the file, and also to add content to the end of the file.
 ///
 /// Read, ReadReplace, ReadAppend are `read`-able.
 ///
@@ -81,9 +81,9 @@ impl Mode {
 ///
 /// e.g.
 ///
-/// `User(Pictures(&[]))`: the user's Pictures directory
+/// `User(Pictures(&[]))`: the user's Pictures folder
 ///
-/// `Project(Data(&["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data directory, with app ID com.github.kdwk.Spidey (see [Project](Project))
+/// `Project(Data(&["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data folder, with app ID com.github.kdwk.Spidey (see [Project](Project))
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Folder<'a> {
     User(User<'a>),
@@ -207,16 +207,16 @@ pub enum User<'a> {
 
 /// A type that represents the application's project folder. An isolated folder is usually provided per app per user by the operating system for apps to put internal files.
 ///
-/// DANGER: if your software is not a registered app on the operating system, this folder will not exist.
+/// DANGER: if your software is not a registered app on the operating system, this folder may not exist.
 /// In this case, consider using a custom subfolder under a [User](User) folder instead.
 ///
 /// Note: use this type with [`.with_id(...)`](Project::with_id) to let [`with(...)`](with) get the folder which is assigned to your app by the operating system.
 ///
 /// Put subdirectories under the respective folders like so: `Data(&["Ad Filters", "English"])`
 ///
-/// Config: place configuration files here, such as app settings.
+/// *Config*: place configuration files here, such as app settings.
 ///
-/// Data: place data files here, such as a web browser's adblock filters.
+/// *Data*: place data files here, such as a web browser's adblock filters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Project<'a> {
     Config(&'a [&'a str]),
@@ -240,9 +240,12 @@ impl<'a> Project<'a> {
 
 /// Whether to create a new file to be represented by this Document.
 ///
-/// No: do not create a new file under any circumstances.
+/// *No*: do not create a new file under any circumstances. If the file does not exist, the [`Document`](Document) instance will fail to be created.
 ///
-/// OnlyIfNotExists: create a new file if the
+/// *OnlyIfNotExists*: create a new file if the file does not exist.
+///
+/// *AutoRenameIfExists*: create a new file under all circumstances. If a file of the same name already exists in the specified folder,
+/// add (1), (2), etc. to the file name to avoid collision (before the file extension).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Create {
     No,
@@ -256,18 +259,31 @@ pub enum Create {
 /// Instead a Box<dyn Error> will be returned. Print it to the console to see a description of the error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DocumentError {
+    /// "User directories not found"
     UserDirsNotFound,
+    /// "Pictures directory not found"
     PicturesDirNotFound,
+    /// "Videos directory not found"
     VideosDirNotFound,
+    /// "Downloads directory not found"
     DownloadsDirNotFound,
+    /// "Documents directory not found"
     DocumentsDirNotFound,
+    /// "Project directories not found"
     ProjectDirsNotFound,
+    /// "File not found: (file path)"
     FileNotFound(String),
+    /// "Could not create file: (file path)"
     CouldNotCreateFile(String),
+    /// "Could not create parent folder: (parent directory path)"
     CouldNotCreateParentFolder(String),
+    /// "Could not launch file with default app: (file path)"
     CouldNotLaunchFile(String),
+    /// "Could not open file: (file path)"
     CouldNotOpenFile(String),
+    /// "File not writable: (file path)"
     FileNotWritable(String),
+    /// "File not open: (file path)"
     FileNotOpen(String),
 }
 
@@ -317,9 +333,10 @@ impl Error for DocumentError {
 pub struct Document {
     /// The alias of this Document in a [Map](Map), used to retrieve this Document from the Map.
     alias: String,
-    /// The [PathBuf](PathBuf) of this Document. You can use [.display()](Pathbuf::display) to convert it to something printable.
+    /// The [PathBuf](std::path::PathBuf) of this Document. You can use `.display()` to convert it to something printable.
     pathbuf: PathBuf,
     /// The [create policy](Create) of this Document, used to signal whether a new file should be created when creating an instance of Document.
+    /// Can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`
     create_policy: Create,
 }
 
@@ -456,13 +473,17 @@ impl Document {
 
     /// Create an instance of [Document](Document) from a [Folder](Folder) location.
     ///
-    /// location: the [Folder](Folder) which the file is in, e.g. `User(Pictures(&["Screenshots"]))` or `Project(Data(&[])).with_id("com", "github.kdwk", "Spidey")`.
+    /// *location*: the [Folder](Folder) which the file is in, e.g. `User(Pictures(&["Screenshots"]))` or
+    /// `Project(Data(&[])).with_id("com", "github.kdwk", "Spidey")`.
     ///
-    /// filename: the name of the file with its file extension. Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// *filename*: the name of the file with its file extension. Provide anything that can be converted to a string:
+    /// a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `display()`.
     ///
-    /// create: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
+    /// *create*: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file.
+    /// This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
     ///
-    /// The file name will be used as the [alias](Document::alias) of this Document. Change with [.alias()](Document::alias).
+    /// The `filename` will be used as the [alias](Document::alias) of this Document. Change it with `.alias()`.
     ///
     /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
     pub fn at(
@@ -486,11 +507,12 @@ impl Document {
     /// Always prefer to put files in well-known folders like the Downloads folder or your project's data folder --- use [Document::at](Document::at) for that.
     /// Use this function only if you are very confident the path is valid, such as if other libraries provide file paths for you to use.
     ///
-    /// path: the full file path of the file. Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// *path*: the full file path of the file. Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `display()`.
     ///
-    /// alias: the alias used to retrieve this Document from a [Map](Map). Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// *alias*: the alias used to retrieve this Document from a [Map](Map). Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
     ///
-    /// create: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
+    /// *create*: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
     ///
     /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
     pub fn at_path(
@@ -532,7 +554,7 @@ impl Document {
     /// Convert this Document to a [File](std::fs::File) (the standard library's type to represent a file). Useful if other functions or libraries expect a File,
     /// or if you need to perform operations on the file not supported by this Document.
     ///
-    /// permissions: the [Mode](Mode) with which the file will be opened, can be `Mode::Read`, `Mode::Replace`, `Mode::Append`, `Mode::ReadReplace` and `Mode::ReadAppend`.
+    /// *permissions*: the [Mode](Mode) with which the file will be opened, can be `Mode::Read`, `Mode::Replace`, `Mode::Append`, `Mode::ReadReplace` and `Mode::ReadAppend`.
     ///
     /// Returns an error if the file cannot be opened.
     pub fn file(&mut self, permissions: Mode) -> Result<File, Box<dyn Error>> {
@@ -541,8 +563,8 @@ impl Document {
 
     /// Add content to the end of the file represented by this Document.
     ///
-    /// content: bytes to be appended. If you have a string literal add `b` to convert it to bytes (`b"example"`); if you have an `&str` or `String` convert with `.as_bytes()`.
-    /// If other libraries provide you with bytes, e.g. from a download operation, you can plug it in as-is.
+    /// *content*: bytes to be appended. If you have a string literal add `b` to convert it to bytes (`b"example"`); if you have an `&str` or `String` convert with `.as_bytes()`.
+    /// If other libraries provide you with bytes, e.g. from a download operation, plug it in as-is.
     ///
     /// Returns an error if the file cannot be opened or the write operation fails.
     pub fn append(&mut self, content: &[u8]) -> Result<&mut Self, Box<dyn Error>> {
@@ -555,7 +577,7 @@ impl Document {
     ///
     /// DANGER: irreversibly wipes out the entire file before writing new content.
     ///
-    /// content: bytes to overwrite with. If you have a string literal add `b` to convert it to bytes (`b"example"`); if you have an `&str` or `String` convert with `.as_bytes()`.
+    /// *content*: bytes to overwrite with. If you have a string literal add `b` to convert it to bytes (`b"example"`); if you have an `&str` or `String` convert with `.as_bytes()`.
     /// If other libraries provide you with bytes, e.g. from a download operation, you can plug it in as-is.
     ///
     /// Returns an error if the file cannot be opened or the write operation fails.
@@ -650,9 +672,15 @@ impl Lines<BufReader<File>> {
     }
 }
 
+/// Common capabilities supported by [`Document`](Document)s, [`Folder`](Folder)s and [`PathBuf`](std::path::PathBuf)s
 pub trait FileSystemEntity {
+    /// The full path of this FileSystemEntity. Returns an empty String if the file path could not be accessed.
+    ///
+    /// DANGER: the format of the file path is different between systems.
     fn path(&self) -> String;
+    /// The full path of this FileSystemEntity. Returns an empty String if the file path could not be accessed.
     fn name(&self) -> String;
+    /// Whether this FileSystemEntity exists.
     fn exists(&self) -> bool;
 }
 
@@ -717,6 +745,10 @@ impl FileSystemEntity for PathBuf {
     }
 }
 
+/// A type that wraps a HashMap between a String and Documents. Access the Documents with any type of index that can be converted to a String.
+///
+/// An instance of this type is provided by [`with`](with) containing all of the [`Document`](Document)s
+/// given in the `documents` parameter as the values, and their respective [`alias`](Document::alias)es as keys.
 pub struct Map(HashMap<String, Document>);
 
 impl<'a, Str> Index<Str> for Map
@@ -748,6 +780,15 @@ impl IntoResult for () {
     }
 }
 
+impl<T> IntoResult for Option<T> {
+    fn into_result(self) -> Result<(), Box<dyn Error>> {
+        match self {
+            Some(_) => Ok(()),
+            None => Err(Box::new(NoneError)),
+        }
+    }
+}
+
 impl<T> IntoResult for Result<T, Box<dyn Error>> {
     fn into_result(self) -> Result<(), Box<dyn Error>> {
         match self {
@@ -775,15 +816,45 @@ impl Display for NoneError {
     }
 }
 
-impl<T> IntoResult for Option<T> {
-    fn into_result(self) -> Result<(), Box<dyn Error>> {
-        match self {
-            Some(_) => Ok(()),
-            None => Err(NoneError)?,
-        }
-    }
-}
-
+/// A way to declare all of the [`Document`](Document)s in one place then access them in the `closure` through a [`Map`](Map) by their [`alias`](Document::alias)es.
+///
+/// *documents*: a [`slice`](https://doc.rust-lang.org/std/primitive.slice.html) of Result of [`Document`](Document)s,
+/// which are usually provided by [`Document::at()`](Document::at) or [`Document::at_path()`](Document::at_path).
+///
+/// *closure*: a closure which accepts a [`Map`](Map) as parameter, and can use [`Document`](Document)s in its body.
+/// This function will run this closure with a [`Map`](Map) of [`Document`](Document)s provided in `documents`.
+/// This closure should return any of: [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
+/// [`Option<T>`](std::option::Option) or [`Result<(), Box<dyn Error>>`](std::result::Result).
+/// Therefore, `?` (try) operators can be used on `Result`s and `Option`s in this closure as long as all of the `?`s are used on the same type.
+///
+/// Note: if any of the [`Document`](Document)s fail to be created, i.e. returns an error, the `closure` will NOT be run.
+/// Errors encountered during Document setup or returned from the closure will be printed.
+///
+/// e.g.
+/// ```
+/// with(
+///     &[
+///         Document::at(User(Pictures(&[])), "1.png", Create::No),
+///         Document::at(User(Pictures(&[])), "42-44.png", Create::No),
+///         Document::at(
+///             User(Pictures(&["Movie Trailer"])),
+///             "thumbnail.png",
+///             Create::No,
+///         )
+///         .alias("pic"),
+///         Document::at(User(Downloads(&[])), "file.txt", Create::No),
+///     ],
+///     |mut d| {
+///         println!("{}", d["1.png"].name());
+///         d["pic"].launch_with_default_app()?;
+///         d["file.txt"]
+///             .append(b"Something\nto be added")?
+///             .launch_with_default_app()?
+///             .lines()?
+///             .print()?;
+///         Ok(())
+///     },
+/// );
 pub fn with<Closure, Return>(documents: &[Result<Document, Box<dyn Error>>], closure: Closure)
 where
     Closure: FnOnce(Map) -> Return,
@@ -798,12 +869,50 @@ where
                 return;
             }
         };
-        if document.clone().alias != "_" {
-            document_map.insert(document.clone().alias, document);
+        let document_alias = document.alias.clone();
+        if document_alias != "_" {
+            document_map.insert(document_alias, document);
         }
     }
     match closure(Map(document_map)).into_result() {
         Ok(_) => {}
         Err(error) => eprintln!("{error}"),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{
+        with, Create, Document, FileSystemEntity,
+        Folder::{self, Project, User},
+        LinesBufReaderFileExt, Mode,
+        Project::{Config, Data},
+        ResultDocumentBoxErrorExt,
+        User::{Documents, Downloads, Home, Pictures, Videos},
+    };
+    fn test1() {
+        with(
+            &[
+                Document::at(User(Pictures(&[])), "1.png", Create::No),
+                Document::at(User(Pictures(&[])), "42-44.png", Create::No),
+                Document::at(
+                    User(Pictures(&["Movie Trailer"])),
+                    "thumbnail.png",
+                    Create::No,
+                )
+                .alias("pic"),
+                Document::at(User(Downloads(&[])), "file.txt", Create::No),
+            ],
+            |mut d| {
+                println!("{}", d["1.png"].name());
+                d["pic"].launch_with_default_app()?;
+                d["file.txt"]
+                    .append(b"Something\nto be added")?
+                    .launch_with_default_app()?
+                    .lines()?
+                    .print()?;
+                Ok(())
+            },
+        );
     }
 }
