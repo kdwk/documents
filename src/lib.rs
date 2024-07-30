@@ -898,6 +898,8 @@ mod prelude {
 #[cfg(test)]
 mod test {
     use super::prelude::*;
+    #[test]
+    /// This test doesn't do anything yet.
     fn test1() {
         with(
             &[
