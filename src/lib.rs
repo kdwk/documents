@@ -667,7 +667,7 @@ impl Lines<BufReader<File>> {
 pub trait FileSystemEntity {
     /// The full path of this FileSystemEntity. Returns an empty String if the file path could not be accessed.
     ///
-    /// DANGER: the format of the file path is different between systems.
+    /// DANGER: the format of file paths is different between systems.
     fn path(&self) -> String;
     /// The full path of this FileSystemEntity. Returns an empty String if the file path could not be accessed.
     fn name(&self) -> String;
@@ -763,6 +763,10 @@ where
     }
 }
 
+/// Maps types implementing this trait to `Result<(), Box<dyn Error>>`.
+///
+/// Implemented for [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
+/// [`Option<T>`](std::option::Option) and [`Result<(), Box<dyn Error>>`](std::result::Result) out-of-the-box
 pub trait IntoResult {
     fn into_result(self) -> Result<(), Box<dyn Error>>;
 }
@@ -873,16 +877,27 @@ where
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::{
+/// A convenient way to import all useful structs, traits and functions in this library.
+///
+/// Note: remember to add the `documents` crate to the project Cargo.toml first.
+///
+/// ```
+/// use documents::prelude::*;
+/// ```
+mod prelude {
+    pub use super::{
         with, Create, Document, FileSystemEntity,
         Folder::{self, Project, User},
-        LinesBufReaderFileExt, Mode,
+        IntoResult, LinesBufReaderFileExt, Mode,
         Project::{Config, Data},
         ResultDocumentBoxErrorExt,
         User::{Documents, Downloads, Home, Pictures, Videos},
     };
+}
+
+#[cfg(test)]
+mod test {
+    use super::prelude::*;
     fn test1() {
         with(
             &[
