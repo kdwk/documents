@@ -3,7 +3,6 @@ use extend::ext;
 use open;
 use std::collections::HashMap;
 use std::error::Error;
-use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{BufRead, BufReader, Lines, Write};
@@ -351,9 +350,9 @@ fn parse_filepath(pathbuf: PathBuf) -> (String, Option<i64>, Option<String>) {
     let extension = match ".".to_string()
         + pathbuf
             .extension()
-            .unwrap_or(OsStr::new(""))
+            .unwrap_or_default()
             .to_str()
-            .unwrap_or("")
+            .unwrap_or_default()
     {
         extension if extension == "." => None,
         extension => Some(extension),
@@ -410,11 +409,7 @@ impl Document {
                 if let Some(parent_folder) = pathbuf.clone().parent() {
                     if let Err(_) = create_dir_all(parent_folder) {
                         Err(DocumentError::CouldNotCreateParentFolder(
-                            parent_folder
-                                .to_path_buf()
-                                .to_str()
-                                .unwrap_or("")
-                                .to_string(),
+                            parent_folder.to_path_buf().display().to_string(),
                         ))?
                     }
                 }
@@ -430,11 +425,7 @@ impl Document {
                 if let Some(parent_folder) = pathbuf.clone().parent() {
                     if let Err(_) = create_dir_all(parent_folder) {
                         Err(DocumentError::CouldNotCreateParentFolder(
-                            parent_folder
-                                .to_path_buf()
-                                .to_str()
-                                .unwrap_or("")
-                                .to_string(),
+                            parent_folder.to_path_buf().display().to_string(),
                         ))?
                     }
                 }
@@ -452,7 +443,7 @@ impl Document {
                     pathbuf = pathbuf
                         .clone()
                         .parent()
-                        .unwrap_or(&Path::new(""))
+                        .unwrap_or(Path::new(""))
                         .join(new_filename);
                 }
                 if !dry_run {
@@ -605,9 +596,9 @@ impl Document {
     pub fn extension(&self) -> String {
         self.pathbuf
             .extension()
-            .unwrap_or(OsStr::new(""))
+            .unwrap_or_default()
             .to_str()
-            .unwrap_or("")
+            .unwrap_or_default()
             .to_string()
     }
 }
@@ -691,11 +682,15 @@ impl FileSystemEntity for Document {
             .file_name()
             .unwrap_or_default()
             .to_str()
-            .unwrap_or("")
+            .unwrap_or_default()
             .to_string()
     }
     fn path(&self) -> String {
-        self.pathbuf.as_os_str().to_str().unwrap_or("").to_string()
+        self.pathbuf
+            .as_os_str()
+            .to_str()
+            .unwrap_or_default()
+            .to_string()
     }
     fn exists(&self) -> bool {
         self.pathbuf.exists()
@@ -704,24 +699,22 @@ impl FileSystemEntity for Document {
 
 impl<'a> FileSystemEntity for Folder<'a> {
     fn exists(&self) -> bool {
-        self.into_pathbuf_result("")
-            .unwrap_or(PathBuf::new())
-            .exists()
+        self.into_pathbuf_result("").unwrap_or_default().exists()
     }
     fn name(&self) -> String {
         self.into_pathbuf_result("")
-            .unwrap_or(PathBuf::new())
+            .unwrap_or_default()
             .file_name()
-            .unwrap_or(OsStr::new(""))
+            .unwrap_or_default()
             .to_str()
-            .unwrap_or("")
+            .unwrap_or_default()
             .to_string()
     }
     fn path(&self) -> String {
         self.into_pathbuf_result("")
-            .unwrap_or(PathBuf::new())
+            .unwrap_or_default()
             .to_str()
-            .unwrap_or("")
+            .unwrap_or_default()
             .to_string()
     }
 }
@@ -729,13 +722,13 @@ impl<'a> FileSystemEntity for Folder<'a> {
 impl FileSystemEntity for PathBuf {
     fn name(&self) -> String {
         self.file_name()
-            .unwrap_or(OsStr::new(""))
+            .unwrap_or_default()
             .to_str()
-            .unwrap_or("")
+            .unwrap_or_default()
             .to_string()
     }
     fn path(&self) -> String {
-        self.to_str().unwrap_or("").to_string()
+        self.to_str().unwrap_or_default().to_string()
     }
     fn exists(&self) -> bool {
         match self.try_exists() {
