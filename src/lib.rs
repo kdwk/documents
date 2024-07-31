@@ -24,8 +24,9 @@ use std::path::{Path, PathBuf};
 /// Read, ReadReplace, ReadAppend are `read`-able.
 ///
 /// Replace, Append, ReadReplace, ReadAppend are `write`-able.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Mode {
+    #[default]
     Read,
     Replace,
     Append,
@@ -76,14 +77,14 @@ impl Mode {
 
 /// A type that represents well-known folders that are likely to exist on most devices.
 ///
-/// See also [User](User) and [Project](Project)
+/// See also [`User`](User) and [`Project`](Project)
 ///
 /// e.g.
 ///
 /// `User(Pictures(&[]))`: the user's Pictures folder
 ///
 /// `Project(Data(&["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data folder, with app ID com.github.kdwk.Spidey (see [Project](Project))
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Folder<'a> {
     User(User<'a>),
     Project((Project<'a>, &'a str, &'a str, &'a str)),
@@ -195,7 +196,7 @@ impl<'a> Folder<'a> {
 /// A type that represents well-known user folders.
 ///
 /// Put subdirectories under the respective folders like so: `Pictures(&["Screenshots", "July", "14"])`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum User<'a> {
     Documents(&'a [&'a str]),
     Pictures(&'a [&'a str]),
@@ -207,16 +208,16 @@ pub enum User<'a> {
 /// A type that represents the application's project folder. An isolated folder is usually provided per app per user by the operating system for apps to put internal files.
 ///
 /// DANGER: if your software is not a registered app on the operating system, this folder may not exist.
-/// In this case, consider using a custom subfolder under a [User](User) folder instead.
+/// In this case, consider using a custom subfolder under a [`User`](User) folder instead.
 ///
-/// Note: use this type with [`.with_id(...)`](Project::with_id) to let [`with(...)`](with) get the folder which is assigned to your app by the operating system.
+/// Note: use this type with [`.with_id(...)`](Project::with_id) to let [`with`](with) get the folder which is assigned to your app by the operating system.
 ///
 /// Put subdirectories under the respective folders like so: `Data(&["Ad Filters", "English"])`
 ///
 /// *Config*: place configuration files here, such as app settings.
 ///
 /// *Data*: place data files here, such as a web browser's adblock filters.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Project<'a> {
     Config(&'a [&'a str]),
     Data(&'a [&'a str]),
@@ -245,8 +246,9 @@ impl<'a> Project<'a> {
 ///
 /// *AutoRenameIfExists*: create a new file under all circumstances. If a file of the same name already exists in the specified folder,
 /// add (1), (2), etc. to the file name to avoid collision (before the file extension).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Create {
+    #[default]
     No,
     OnlyIfNotExists,
     AutoRenameIfExists,
@@ -256,7 +258,7 @@ pub enum Create {
 ///
 /// Note: functions in this library will not actually return this concrete error type.
 /// Instead a Box<dyn Error> will be returned. Print it to the console to see a description of the error.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DocumentError {
     /// "User directories not found"
     UserDirsNotFound,
@@ -321,20 +323,20 @@ impl Error for DocumentError {
 
 /// A type that represents a file.
 ///
-/// Create an instance of this type with [Document::at](Document::at) or [Document::from_path](Document::from_path).
+/// Create an instance of this type with [`Document::at`](Document::at) or [`Document::at_path`](Document::at_path).
 /// Do not use direct instantiation.
 ///
-/// Optionally, use [with](with) to create Documents for use within a scope --- it's easier!
+/// Optionally, use [`with`](with) to create Documents for use within a scope --- it's easier!
 ///
-/// Note that a Document is not the actual file. Creating an instance of this type will not create a new file.
-/// To specify whether to do so, use the `create` parameter of [Document::at](Document::at) or [Document::from_path](Document::from_path).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Note: a Document is not the actual file. Creating an instance of this type will not create a new file.
+/// To specify whether to do so, use the `create` parameter of [`Document::at`](Document::at) or [`Document::at_path`](Document::at_path).
+#[derive(Debug, Clone, PartialEq)]
 pub struct Document {
-    /// The alias of this Document in a [Map](Map), used to retrieve this Document from the Map.
+    /// The alias of this Document in a [`Map`](Map), used to retrieve this Document from the Map.
     alias: String,
-    /// The [PathBuf](std::path::PathBuf) of this Document. You can use `.display()` to convert it to something printable.
+    /// The [`PathBuf`](std::path::PathBuf) of this Document. You can use `.display()` to convert it to something printable.
     pathbuf: PathBuf,
-    /// The [create policy](Create) of this Document, used to signal whether a new file should be created when creating an instance of Document.
+    /// The [`Create`](Create) policy of this Document, used to signal whether a new file should be created when creating an instance of Document.
     /// Can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`
     create_policy: Create,
 }
@@ -462,19 +464,19 @@ impl Document {
         Ok(pathbuf)
     }
 
-    /// Create an instance of [Document](Document) from a [Folder](Folder) location.
+    /// Create an instance of [`Document`](Document) from a [`Folder`](Folder) location.
     ///
-    /// *location*: the [Folder](Folder) which the file is in, e.g. `User(Pictures(&["Screenshots"]))` or
+    /// *location*: the [`Folder`](Folder) which the file is in, e.g. `User(Pictures(&["Screenshots"]))` or
     /// `Project(Data(&[])).with_id("com", "github.kdwk", "Spidey")`.
     ///
     /// *filename*: the name of the file with its file extension. Provide anything that can be converted to a string:
-    /// a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
     /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `display()`.
     ///
-    /// *create*: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file.
+    /// *create*: the [`Create`](Create) policy of this Document, i.e. whether this operation will create a new file.
     /// This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
     ///
-    /// The `filename` will be used as the [alias](Document::alias) of this Document. Change it with `.alias()`.
+    /// The `filename` will be used as the [`alias`](Document::alias) of this Document. Change it with `.alias()`.
     ///
     /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
     pub fn at(
@@ -492,18 +494,18 @@ impl Document {
         })
     }
 
-    /// Create an instance of [Document](Document) from the full file path.
+    /// Create an instance of [`Document`](Document) from the full file path.
     ///
     /// DANGER: the format of file paths and specific location of files can differ between computers!
     /// Always prefer to put files in well-known folders like the Downloads folder or your project's data folder --- use [Document::at](Document::at) for that.
     /// Use this function only if you are very confident the path is valid, such as if other libraries provide file paths for you to use.
     ///
-    /// *path*: the full file path of the file. Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// *path*: the full file path of the file. Provide anything that can be converted to a string: a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
     /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `display()`.
     ///
-    /// *alias*: the alias used to retrieve this Document from a [Map](Map). Provide anything that can be converted to a string: a [String](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// *alias*: the alias used to retrieve this Document from a [`Map`](Map). Provide anything that can be converted to a string: a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
     ///
-    /// *create*: the [Create](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
+    /// *create*: the [`Create`](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
     ///
     /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
     pub fn at_path(
@@ -542,10 +544,10 @@ impl Document {
         }
     }
 
-    /// Convert this Document to a [File](std::fs::File) (the standard library's type to represent a file). Useful if other functions or libraries expect a File,
+    /// Convert this Document to a [`File`](std::fs::File) (the standard library's type to represent a file). Useful if other functions or libraries expect a File,
     /// or if you need to perform operations on the file not supported by this Document.
     ///
-    /// *permissions*: the [Mode](Mode) with which the file will be opened, can be `Mode::Read`, `Mode::Replace`, `Mode::Append`, `Mode::ReadReplace` and `Mode::ReadAppend`.
+    /// *permissions*: the [`Mode`](Mode) with which the file will be opened, can be `Mode::Read`, `Mode::Replace`, `Mode::Append`, `Mode::ReadReplace` and `Mode::ReadAppend`.
     ///
     /// Returns an error if the file cannot be opened.
     pub fn file(&mut self, permissions: Mode) -> Result<File, Box<dyn Error>> {
@@ -885,6 +887,7 @@ where
 /// use documents::prelude::*;
 /// ```
 mod prelude {
+    #[allow(unused_imports)]
     pub use super::{
         with, Create, Document, FileSystemEntity,
         Folder::{self, Project, User},
