@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use directories;
 use extend::ext;
 use open;
@@ -24,7 +25,7 @@ use std::path::{Path, PathBuf};
 /// Read, ReadReplace, ReadAppend are `read`-able.
 ///
 /// Replace, Append, ReadReplace, ReadAppend are `write`-able.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub enum Mode {
     #[default]
     Read,
@@ -84,7 +85,7 @@ impl Mode {
 /// `User(Pictures(&[]))`: the user's Pictures folder
 ///
 /// `Project(Data(&["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data folder, with app ID com.github.kdwk.Spidey (see [Project](Project))
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Folder<'a> {
     User(User<'a>),
     Project((Project<'a>, &'a str, &'a str, &'a str)),
@@ -195,8 +196,12 @@ impl<'a> Folder<'a> {
 
 /// A type that represents well-known user folders.
 ///
-/// Put subdirectories under the respective folders like so: `Pictures(&["Screenshots", "July", "14"])`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Put subdirectories in the [`slice`]() like so: `Pictures(&["Screenshots", "July", "14"])`.
+/// 
+/// e.g.
+/// 
+/// 
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum User<'a> {
     Documents(&'a [&'a str]),
     Pictures(&'a [&'a str]),
@@ -217,7 +222,12 @@ pub enum User<'a> {
 /// *Config*: place configuration files here, such as app settings.
 ///
 /// *Data*: place data files here, such as a web browser's adblock filters.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// 
+/// ```
+/// let adblock_filters_folder = Project(Data(&["Ad Filters", "English"]));
+/// let 
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Project<'a> {
     Config(&'a [&'a str]),
     Data(&'a [&'a str]),
@@ -246,7 +256,7 @@ impl<'a> Project<'a> {
 ///
 /// *AutoRenameIfExists*: create a new file under all circumstances. If a file of the same name already exists in the specified folder,
 /// add (1), (2), etc. to the file name to avoid collision (before the file extension).
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub enum Create {
     #[default]
     No,
@@ -258,7 +268,7 @@ pub enum Create {
 ///
 /// Note: functions in this library will not actually return this concrete error type.
 /// Instead a Box<dyn Error> will be returned. Print it to the console to see a description of the error.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum DocumentError {
     /// "User directories not found"
     UserDirsNotFound,
@@ -330,7 +340,7 @@ impl Error for DocumentError {
 ///
 /// Note: a Document is not the actual file. Creating an instance of this type will not create a new file.
 /// To specify whether to do so, use the `create` parameter of [`Document::at`](Document::at) or [`Document::at_path`](Document::at_path).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Document {
     /// The alias of this Document in a [`Map`](Map), used to retrieve this Document from the Map.
     alias: String,
@@ -666,7 +676,24 @@ impl Lines<BufReader<File>> {
 }
 
 /// Common capabilities supported by [`Document`](Document)s, [`Folder`](Folder)s and [`PathBuf`](std::path::PathBuf)s
-pub trait FileSystemEntity {
+/// 
+/// Note: this trait is object-safe, which means it can be used as the variable, function parameter and function return
+/// types.
+/// 
+/// ```
+/// fn test2() {
+///     let a: &[&dyn FileSystemEntity] = &[
+///         &Document::at(User(Pictures(&[""])), "pic", Create::No),
+///         &User(Pictures(&[""])),
+///         &Project(Data(&[]).with_id("qualifier", "organization", "application")),
+///         &PathBuf::new(),
+///     ];
+///     for b in a {
+///         println!("{:?} {} exist.", b, if b.exists() {"does"} else {"doesn't"});
+///     }
+/// }
+/// ```
+pub trait FileSystemEntity: Debug {
     /// The full path of this FileSystemEntity. Returns an empty String if the file path could not be accessed.
     ///
     /// DANGER: the format of file paths is different between systems.
@@ -740,6 +767,27 @@ impl FileSystemEntity for PathBuf {
     }
 }
 
+impl FileSystemEntity for Result<Document, Box<dyn Error>> {
+    fn exists(&self) -> bool {
+        match self {
+            Ok(document) => document.exists(),
+            Err(_) => false
+        }
+    }
+    fn name(&self) -> String {
+        match self {
+            Ok(document) => document.name(),
+            Err(_) => "".to_string()
+        }
+    }
+    fn path(&self) -> String {
+        match self {
+            Ok(document) => document.path(),
+            Err(_) => "".to_string()
+        }
+    }
+}
+
 /// A type that wraps a HashMap between a String and Documents. Access the Documents with any type of index that can be converted to a String.
 ///
 /// An instance of this type is provided by [`with`](with) containing all of the [`Document`](Document)s
@@ -766,6 +814,28 @@ where
 }
 
 /// Maps types implementing this trait to `Result<(), Box<dyn Error>>`.
+/// 
+/// Note: this trait is *not* object-safe, which means it cannot be used as the type of a variable. 
+/// However, `impl IntoResult` can be used for function parameters and return types.
+/// 
+/// ```
+/// fn may_fail_on_paper() -> impl IntoResult {
+///     doesnt_actually_fail(); 
+///     // Returns (), acceptable
+/// }
+/// 
+/// fn may_fail_for_real() -> impl IntoResult {
+///     let value: T = get_value_or_fail()?;
+///     use(value);
+///     Ok(()) // Returns Result<(), Error>, acceptable 
+/// }
+/// 
+/// fn may_be_none() -> impl IntoResult {
+///     let value: T = get_value_or_none()?;
+///     use(value);
+///     Some(()) // Returns Option<()>, acceptable 
+/// }
+/// ```
 ///
 /// Implemented for [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
 /// [`Option<T>`](std::option::Option) and [`Result<(), Box<dyn Error>>`](std::result::Result) out-of-the-box
@@ -774,12 +844,29 @@ pub trait IntoResult {
 }
 
 impl IntoResult for () {
+    /// Implementation
+    /// 
+    /// ```
+    /// fn into_result(self) -> Result<(), Box<dyn Error>> {
+    ///     Ok(())
+    /// }
+    /// ```
     fn into_result(self) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 }
 
 impl<T> IntoResult for Option<T> {
+    /// Implementation
+    /// 
+    /// ```
+    /// fn into_result(self) -> Result<(), Box<dyn Error>> {
+    ///     match self {
+    ///         Some(_) => Ok(()),
+    ///         None => Err(Box::new(NoneError)),
+    ///     }
+    /// }
+    /// ```
     fn into_result(self) -> Result<(), Box<dyn Error>> {
         match self {
             Some(_) => Ok(()),
@@ -789,6 +876,16 @@ impl<T> IntoResult for Option<T> {
 }
 
 impl<T> IntoResult for Result<T, Box<dyn Error>> {
+    /// Implementation
+    /// 
+    /// ```
+    /// fn into_result(self) -> Result<(), Box<dyn Error>> {
+    ///     match self {
+    ///         Ok(_) => Ok(()),
+    ///         Err(error) => Err(error),
+    ///     }
+    /// }
+    /// ```
     fn into_result(self) -> Result<(), Box<dyn Error>> {
         match self {
             Ok(_) => Ok(()),
@@ -820,28 +917,29 @@ impl Display for NoneError {
 /// *documents*: a [`slice`](https://doc.rust-lang.org/std/primitive.slice.html) of Result of [`Document`](Document)s,
 /// which are usually provided by [`Document::at()`](Document::at) or [`Document::at_path()`](Document::at_path).
 ///
-/// *closure*: a closure which accepts a [`Map`](Map) as parameter, and can use [`Document`](Document)s in its body.
+/// *closure*: a [closure](https://doc.rust-lang.org/book/ch13-01-closures.html) which accepts a [`Map`](Map) as parameter, and can use [`Document`](Document)s in its body.
 /// This function will run this closure with a [`Map`](Map) of [`Document`](Document)s provided in `documents`.
-/// This closure should return any of: [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
+/// This closure should return a type that implements [`IntoResult`](IntoResult) any of: [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
 /// [`Option<T>`](std::option::Option) or [`Result<(), Box<dyn Error>>`](std::result::Result).
 /// Therefore, `?` (try) operators can be used on `Result`s and `Option`s in this closure as long as all of the `?`s are used on the same type.
 ///
 /// Note: if any of the [`Document`](Document)s fail to be created, i.e. returns an error, the `closure` will NOT be run.
 /// Errors encountered during Document setup or returned from the closure will be printed.
+/// 
+/// Note: to conduct write operations, including `.append(...)` and `.replace(...)` on [`Document`](Document)s, declare the [`Map`](Map) parameter of *closure* to be mutable.
 ///
 /// e.g.
 /// ```
 /// with(
 ///     &[
 ///         Document::at(User(Pictures(&[])), "1.png", Create::No),
-///         Document::at(User(Pictures(&[])), "42-44.png", Create::No),
 ///         Document::at(
 ///             User(Pictures(&["Movie Trailer"])),
 ///             "thumbnail.png",
-///             Create::No,
+///             Create::OnlyIfNotExists,
 ///         )
 ///         .alias("pic"),
-///         Document::at(User(Downloads(&[])), "file.txt", Create::No),
+///         Document::at(User(Downloads(&[])), "file.txt", Create::AutoRenameIfExists),
 ///     ],
 ///     |mut d| {
 ///         println!("{}", d["1.png"].name());
@@ -886,7 +984,7 @@ where
 /// ```
 /// use documents::prelude::*;
 /// ```
-mod prelude {
+pub mod prelude {
     #[allow(unused_imports)]
     pub use super::{
         with, Create, Document, FileSystemEntity,
@@ -900,6 +998,8 @@ mod prelude {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use super::prelude::*;
     #[test]
     /// This test doesn't do anything yet.
@@ -927,5 +1027,18 @@ mod test {
                 Ok(())
             },
         );
+    }
+    #[test]
+    /// This test also doesn't do anything yet.
+    fn test2() {
+        let a: &[&dyn FileSystemEntity] = &[
+            &Document::at(User(Pictures(&[""])), "pic", Create::No),
+            &User(Pictures(&[""])),
+            &Project(Data(&[]).with_id("qualifier", "organization", "application")),
+            &PathBuf::new(),
+        ];
+        for b in a {
+            println!("{:?} {} exist.", b, if b.exists() {"does"} else {"doesn't"});
+        }
     }
 }
