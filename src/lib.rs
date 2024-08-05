@@ -197,10 +197,10 @@ impl<'a> Folder<'a> {
 /// A type that represents well-known user folders.
 ///
 /// Put subdirectories in the [`slice`]() like so: `Pictures(&["Screenshots", "July", "14"])`.
-/// 
+///
 /// e.g.
-/// 
-/// 
+///
+///
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum User<'a> {
     Documents(&'a [&'a str]),
@@ -222,10 +222,10 @@ pub enum User<'a> {
 /// *Config*: place configuration files here, such as app settings.
 ///
 /// *Data*: place data files here, such as a web browser's adblock filters.
-/// 
+///
 /// ```
 /// let adblock_filters_folder = Project(Data(&["Ad Filters", "English"]));
-/// let 
+/// let
 /// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Project<'a> {
@@ -676,10 +676,10 @@ impl Lines<BufReader<File>> {
 }
 
 /// Common capabilities supported by [`Document`](Document)s, [`Folder`](Folder)s and [`PathBuf`](std::path::PathBuf)s
-/// 
+///
 /// Note: this trait is object-safe, which means it can be used as the variable, function parameter and function return
 /// types.
-/// 
+///
 /// ```
 /// fn test2() {
 ///     let a: &[&dyn FileSystemEntity] = &[
@@ -715,11 +715,7 @@ impl FileSystemEntity for Document {
             .to_string()
     }
     fn path(&self) -> String {
-        self.pathbuf
-            .as_os_str()
-            .to_str()
-            .unwrap_or_default()
-            .to_string()
+        self.pathbuf.display().to_string()
     }
     fn exists(&self) -> bool {
         self.pathbuf.exists()
@@ -742,8 +738,7 @@ impl<'a> FileSystemEntity for Folder<'a> {
     fn path(&self) -> String {
         self.into_pathbuf_result("")
             .unwrap_or_default()
-            .to_str()
-            .unwrap_or_default()
+            .display()
             .to_string()
     }
 }
@@ -757,7 +752,7 @@ impl FileSystemEntity for PathBuf {
             .to_string()
     }
     fn path(&self) -> String {
-        self.to_str().unwrap_or_default().to_string()
+        self.display().to_string()
     }
     fn exists(&self) -> bool {
         match self.try_exists() {
@@ -771,19 +766,19 @@ impl FileSystemEntity for Result<Document, Box<dyn Error>> {
     fn exists(&self) -> bool {
         match self {
             Ok(document) => document.exists(),
-            Err(_) => false
+            Err(_) => false,
         }
     }
     fn name(&self) -> String {
         match self {
             Ok(document) => document.name(),
-            Err(_) => "".to_string()
+            Err(_) => "".to_string(),
         }
     }
     fn path(&self) -> String {
         match self {
             Ok(document) => document.path(),
-            Err(_) => "".to_string()
+            Err(_) => "".to_string(),
         }
     }
 }
@@ -814,26 +809,26 @@ where
 }
 
 /// Maps types implementing this trait to `Result<(), Box<dyn Error>>`.
-/// 
-/// Note: this trait is *not* object-safe, which means it cannot be used as the type of a variable. 
+///
+/// Note: this trait is *not* object-safe, which means it cannot be used as the type of a variable.
 /// However, `impl IntoResult` can be used for function parameters and return types.
-/// 
+///
 /// ```
 /// fn may_fail_on_paper() -> impl IntoResult {
-///     doesnt_actually_fail(); 
+///     doesnt_actually_fail();
 ///     // Returns (), acceptable
 /// }
-/// 
+///
 /// fn may_fail_for_real() -> impl IntoResult {
 ///     let value: T = get_value_or_fail()?;
 ///     use(value);
-///     Ok(()) // Returns Result<(), Error>, acceptable 
+///     Ok(()) // Returns Result<(), Error>, acceptable
 /// }
-/// 
+///
 /// fn may_be_none() -> impl IntoResult {
 ///     let value: T = get_value_or_none()?;
 ///     use(value);
-///     Some(()) // Returns Option<()>, acceptable 
+///     Some(()) // Returns Option<()>, acceptable
 /// }
 /// ```
 ///
@@ -845,7 +840,7 @@ pub trait IntoResult {
 
 impl IntoResult for () {
     /// Implementation
-    /// 
+    ///
     /// ```
     /// fn into_result(self) -> Result<(), Box<dyn Error>> {
     ///     Ok(())
@@ -858,7 +853,7 @@ impl IntoResult for () {
 
 impl<T> IntoResult for Option<T> {
     /// Implementation
-    /// 
+    ///
     /// ```
     /// fn into_result(self) -> Result<(), Box<dyn Error>> {
     ///     match self {
@@ -877,7 +872,7 @@ impl<T> IntoResult for Option<T> {
 
 impl<T> IntoResult for Result<T, Box<dyn Error>> {
     /// Implementation
-    /// 
+    ///
     /// ```
     /// fn into_result(self) -> Result<(), Box<dyn Error>> {
     ///     match self {
@@ -925,7 +920,7 @@ impl Display for NoneError {
 ///
 /// Note: if any of the [`Document`](Document)s fail to be created, i.e. returns an error, the `closure` will NOT be run.
 /// Errors encountered during Document setup or returned from the closure will be printed.
-/// 
+///
 /// Note: to conduct write operations, including `.append(...)` and `.replace(...)` on [`Document`](Document)s, declare the [`Map`](Map) parameter of *closure* to be mutable.
 ///
 /// e.g.
@@ -1038,7 +1033,11 @@ mod test {
             &PathBuf::new(),
         ];
         for b in a {
-            println!("{:?} {} exist.", b, if b.exists() {"does"} else {"doesn't"});
+            println!(
+                "{:?} {} exist.",
+                b,
+                if b.exists() { "does" } else { "doesn't" }
+            );
         }
     }
 }
