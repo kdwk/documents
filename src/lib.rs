@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use std::collections::hash_map::IntoIter;
 use directories;
 use extend::ext;
 use open;
@@ -342,7 +343,7 @@ impl Error for DocumentError {
 /// To specify whether to do so, use the `create` parameter of [`Document::at`](Document::at) or [`Document::at_path`](Document::at_path).
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Document {
-    /// The alias of this Document in a [`Map`](Map), used to retrieve this Document from the Map.
+    /// The alias of this Document in a [`DocumentMap`](DocumentMap), used to retrieve this Document from the DocumentMap.
     alias: String,
     /// The [`PathBuf`](std::path::PathBuf) of this Document. You can use `.display()` to convert it to something printable.
     pathbuf: PathBuf,
@@ -513,7 +514,7 @@ impl Document {
     /// *path*: the full file path of the file. Provide anything that can be converted to a string: a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
     /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `display()`.
     ///
-    /// *alias*: the alias used to retrieve this Document from a [`Map`](Map). Provide anything that can be converted to a string: a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
+    /// *alias*: the alias used to retrieve this Document from a [`DocumentMap`](DocumentMap). Provide anything that can be converted to a string: a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
     ///
     /// *create*: the [`Create`](Create) policy of this Document, i.e. whether this operation will create a new file. This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
     ///
@@ -617,9 +618,9 @@ impl Document {
 
 #[ext(pub)]
 impl Result<Document, Box<dyn Error>> {
-    /// Sets the alias of this Document if this Document has created successfully. Use "_" to instruct [`with(...)`](with) to skip adding this Document to the [Map](Map).
+    /// Sets the alias of this Document if this Document has created successfully. Use "_" to instruct [`with(...)`](with) to skip adding this Document to the [`DocumentMap`](DocumentMap).
     ///
-    /// Note: the alias is used to identify this Document in a [Map](Map).
+    /// Note: the alias is used to identify this Document in a [DocumentMap](DocumentMap).
     /// Do not provide the same alias for multiple Documents.
     ///
     /// Returns an error if this Document has not been created successfully.
@@ -677,7 +678,7 @@ impl Lines<BufReader<File>> {
 
 /// Common capabilities supported by [`Document`](Document)s, [`Folder`](Folder)s and [`PathBuf`](std::path::PathBuf)s
 ///
-/// Note: this trait is object-safe, which means it can be used as the variable, function parameter and function return
+/// Note: this trait is object-safe, which means it can be used as variable, function parameter and function return
 /// types.
 ///
 /// ```
@@ -698,7 +699,7 @@ pub trait FileSystemEntity: Debug {
     ///
     /// DANGER: the format of file paths is different between systems.
     fn path(&self) -> String;
-    /// The full path of this FileSystemEntity. Returns an empty String if the file path could not be accessed.
+    /// The name (with extension if applicable) of this FileSystemEntity. Returns an empty String if the path could not be accessed.
     fn name(&self) -> String;
     /// Whether this FileSystemEntity exists.
     fn exists(&self) -> bool;
@@ -787,9 +788,10 @@ impl FileSystemEntity for Result<Document, Box<dyn Error>> {
 ///
 /// An instance of this type is provided by [`with`](with) containing all of the [`Document`](Document)s
 /// given in the `documents` parameter as the values, and their respective [`alias`](Document::alias)es as keys.
-pub struct Map(HashMap<String, Document>);
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct DocumentMap(HashMap<String, Document>);
 
-impl<'a, Str> Index<Str> for Map
+impl<'a, Str> Index<Str> for DocumentMap
 where
     Str: Display,
 {
@@ -799,12 +801,20 @@ where
     }
 }
 
-impl<'a, Str> IndexMut<Str> for Map
+impl<'a, Str> IndexMut<Str> for DocumentMap
 where
     Str: Display,
 {
     fn index_mut(&mut self, index: Str) -> &mut Self::Output {
         self.0.get_mut(index.to_string().as_str()).unwrap()
+    }
+}
+
+impl<'a> IntoIterator for DocumentMap {
+    type Item = (String, Document);
+    type IntoIter = IntoIter<String, Document>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -907,13 +917,13 @@ impl Display for NoneError {
     }
 }
 
-/// A way to declare all of the [`Document`](Document)s in one place then access them in the `closure` through a [`Map`](Map) by their [`alias`](Document::alias)es.
+/// A way to declare all of the [`Document`](Document)s in one place then access them in the `closure` through a [`DocumentMap`](DocumentMap) by their [`alias`](Document::alias)es.
 ///
 /// *documents*: a [`slice`](https://doc.rust-lang.org/std/primitive.slice.html) of Result of [`Document`](Document)s,
 /// which are usually provided by [`Document::at()`](Document::at) or [`Document::at_path()`](Document::at_path).
 ///
-/// *closure*: a [closure](https://doc.rust-lang.org/book/ch13-01-closures.html) which accepts a [`Map`](Map) as parameter, and can use [`Document`](Document)s in its body.
-/// This function will run this closure with a [`Map`](Map) of [`Document`](Document)s provided in `documents`.
+/// *closure*: a [closure](https://doc.rust-lang.org/book/ch13-01-closures.html) which accepts a [`DocumentMap`](DocumentMap) as parameter, and can use [`Document`](Document)s in its body.
+/// This function will run this closure with a [`DocumentMap`](DocumentMap) of [`Document`](Document)s provided in `documents`.
 /// This closure should return a type that implements [`IntoResult`](IntoResult) any of: [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
 /// [`Option<T>`](std::option::Option) or [`Result<(), Box<dyn Error>>`](std::result::Result).
 /// Therefore, `?` (try) operators can be used on `Result`s and `Option`s in this closure as long as all of the `?`s are used on the same type.
@@ -921,7 +931,7 @@ impl Display for NoneError {
 /// Note: if any of the [`Document`](Document)s fail to be created, i.e. returns an error, the `closure` will NOT be run.
 /// Errors encountered during Document setup or returned from the closure will be printed.
 ///
-/// Note: to conduct write operations, including `.append(...)` and `.replace(...)` on [`Document`](Document)s, declare the [`Map`](Map) parameter of *closure* to be mutable.
+/// Note: to conduct write operations, including `.append(...)` and `.replace(...)` on [`Document`](Document)s, declare the [`DocumentMap`](DocumentMap) parameter of *closure* to be mutable.
 ///
 /// e.g.
 /// ```
@@ -949,7 +959,7 @@ impl Display for NoneError {
 /// );
 pub fn with<Closure, Return>(documents: &[Result<Document, Box<dyn Error>>], closure: Closure)
 where
-    Closure: FnOnce(Map) -> Return,
+    Closure: FnOnce(DocumentMap) -> Return,
     Return: IntoResult,
 {
     let mut document_map = HashMap::new();
@@ -966,7 +976,7 @@ where
             document_map.insert(document_alias, document);
         }
     }
-    match closure(Map(document_map)).into_result() {
+    match closure(DocumentMap(document_map)).into_result() {
         Ok(_) => {}
         Err(error) => eprintln!("{error}"),
     }
@@ -1012,6 +1022,9 @@ mod test {
                 Document::at(User(Downloads(&[])), "file.txt", Create::No),
             ],
             |mut d| {
+                for (alias, doc) in d.clone() {
+                    println!("{alias}: {doc:?}");
+                }
                 println!("{}", d["1.png"].name());
                 d["pic"].launch_with_default_app()?;
                 d["file.txt"]
