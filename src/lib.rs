@@ -77,7 +77,7 @@ impl Mode {
     }
 }
 
-/// A type that represents well-known folders that are likely to exist on most devices.
+/// A type that represents well-known named folders that are likely to exist on most devices.
 ///
 /// See also [`User`](User) and [`Project`](Project)
 ///
@@ -198,10 +198,6 @@ impl<'a> Folder<'a> {
 /// A type that represents well-known user folders.
 ///
 /// Put subdirectories in the [`slice`]() like so: `Pictures(&["Screenshots", "July", "14"])`.
-///
-/// e.g.
-///
-///
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum User<'a> {
     Documents(&'a [&'a str]),
