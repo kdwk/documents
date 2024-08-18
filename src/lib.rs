@@ -25,7 +25,7 @@ use into_result::IntoResult;
 ///
 /// *closure*: a [closure](https://doc.rust-lang.org/book/ch13-01-closures.html) which accepts a [`DocumentMap`](DocumentMap) as parameter, and can use [`Document`](Document)s in its body.
 /// This function will run this closure with a [`DocumentMap`](DocumentMap) of [`Document`](Document)s provided in `documents`.
-/// This closure should return a type that implements [`IntoResult`](IntoResult) any of: [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
+/// This closure should return a type that implements [`IntoResult`](IntoResult), i.e. any of: [`()`](https://doc.rust-lang.org/std/primitive.unit.html),
 /// [`Option<T>`](std::option::Option) or [`Result<(), Box<dyn Error>>`](std::result::Result).
 /// Therefore, `?` (try) operators can be used on `Result`s and `Option`s in this closure as long as all of the `?`s are used on the same type.
 ///
