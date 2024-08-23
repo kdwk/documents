@@ -13,11 +13,12 @@ keywords = [
     "ergonomics",
 ]
 categories = ["filesystem"]
-description = "An easy-to-use and ergonomic library for dealing with files."
+description = "An ergonomic, intuitive and beginner-friendly library for dealing with files and folders."
 repository = "https://github.com/kdwk/documents"
 readme = "README.md"
+license-file = "LICENSE"
 
 [dependencies]
 directories = "5.0.1"
 extend = "1.2.0"
-open = "5.2.0"
+open = "5.3.0"
