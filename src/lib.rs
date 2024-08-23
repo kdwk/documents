@@ -2,21 +2,21 @@ use std::collections::HashMap;
 use std::error::Error;
 
 mod mode;
-use mode::Mode;
+pub use mode::Mode;
 mod folder;
-use folder::Folder;
+pub use folder::Folder;
 mod create;
-use create::Create;
+pub use create::Create;
 mod document_error;
-use document_error::DocumentError;
+pub use document_error::DocumentError;
 mod document;
-use document::Document;
+pub use document::Document;
 mod filesystem_entity;
-use filesystem_entity::FileSystemEntity;
+pub use filesystem_entity::FileSystemEntity;
 mod document_map;
-use document_map::DocumentMap;
+pub use document_map::DocumentMap;
 mod into_result;
-use into_result::IntoResult;
+pub use into_result::IntoResult;
 
 /// A way to declare all of the [`Document`](Document)s in one place then access them in the `closure` through a [`DocumentMap`](DocumentMap) by their [`alias`](Document::alias)es.
 ///
