@@ -1,10 +1,11 @@
 use core::fmt::Debug;
+use core::str;
 use extend::ext;
 use open;
 use std::error::Error;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File, OpenOptions};
-use std::io::{BufRead, BufReader, Lines, Write};
+use std::io::{BufRead, BufReader, Lines, Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::{Create, DocumentError, FileSystemEntity, Folder, Mode};
@@ -159,7 +160,7 @@ impl Document {
     ///
     /// *filename*: the name of the file with its file extension. Provide anything that can be converted to a string:
     /// a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
-    /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `display()`.
+    /// A [`PathBuf`](std::path::PathBuf) can also be converted to an acceptable type with `.display()`.
     ///
     /// *create*: the [`Create`](Create) policy of this Document, i.e. whether this operation will create a new file.
     /// This can be `Create::No`, `Create::OnlyIfNotExists` or `Create::AutoRenameIfExists`.
@@ -270,6 +271,8 @@ impl Document {
 
     /// Returns an iterator over the lines of the file represented by this Document.
     ///
+    /// Returns an error if the file could not be opened in read mode.
+    ///
     /// Useful for processing the contents of file line by line.
     ///
     /// ```
@@ -282,7 +285,26 @@ impl Document {
         Ok(BufReader::new(file).lines())
     }
 
+    /// Returns the contents of the file represented by this Document.
+    ///
+    /// Returns an error if the file could not be opened in read mode or
+    /// its content could not be written to a String.
+    ///
+    /// ```
+    /// let file_content = document.content().expect("Could not read content");
+    /// println!("{file_content}");
+    /// ```
+    pub fn content(&self) -> Result<String, Box<dyn Error>> {
+        let mut file = self.open_file(Mode::Read)?;
+        let mut string = String::new();
+        file.read_to_string(&mut string)?;
+        Ok(string)
+    }
+
     /// The file extension of the file represented by this Document.
+    ///
+    /// Returns an empty String if the file extension is empty or could
+    /// not be converted to a String
     pub fn extension(&self) -> String {
         self.pathbuf
             .extension()
