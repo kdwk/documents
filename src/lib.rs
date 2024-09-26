@@ -20,7 +20,7 @@ pub use into_result::IntoResult;
 
 /// A way to declare all of the [`Document`](Document)s in one place then access them in the `closure` through a [`DocumentMap`](DocumentMap) by their [`alias`](Document::alias)es.
 ///
-/// *documents*: a [`slice`](https://doc.rust-lang.org/std/primitive.slice.html) of Result of [`Document`](Document)s,
+/// *documents*: a list (array, Vec, or any list containers) of Result of [`Document`](Document)s,
 /// which are usually provided by [`Document::at()`](Document::at) or [`Document::at_path()`](Document::at_path).
 ///
 /// *closure*: a [closure](https://doc.rust-lang.org/book/ch13-01-closures.html) which accepts a [`DocumentMap`](DocumentMap) as parameter, and can use [`Document`](Document)s in its body.
@@ -37,15 +37,15 @@ pub use into_result::IntoResult;
 /// e.g.
 /// ```
 /// with(
-///     &[
-///         Document::at(User(Pictures(&[])), "1.png", Create::No),
+///     [
+///         Document::at(User(Pictures([])), "1.png", Create::No),
 ///         Document::at(
-///             User(Pictures(&["Movie Trailer"])),
+///             User(Pictures(["Movie Trailer"])),
 ///             "thumbnail.png",
 ///             Create::OnlyIfNotExists,
 ///         )
 ///         .alias("pic"),
-///         Document::at(User(Downloads(&[])), "file.txt", Create::AutoRenameIfExists),
+///         Document::at(User(Downloads([])), "file.txt", Create::AutoRenameIfExists),
 ///     ],
 ///     |mut d| {
 ///         println!("{}", d["1.png"].name());
@@ -58,15 +58,16 @@ pub use into_result::IntoResult;
 ///         Ok(())
 ///     },
 /// );
-pub fn with<Closure, Return>(documents: &[Result<Document, Box<dyn Error>>], closure: Closure)
+pub fn with<Documents, Closure, Return>(documents: Documents, closure: Closure)
 where
+    Documents: IntoIterator<Item = Result<Document, Box<dyn Error>>>,
     Closure: FnOnce(DocumentMap) -> Return,
     Return: IntoResult,
 {
     let mut document_map = HashMap::new();
-    for document_result in documents {
+    for document_result in documents.into_iter() {
         let document = match document_result {
-            Ok(document) => (*document).clone(),
+            Ok(document) => document.clone(),
             Err(error) => {
                 eprintln!("{}", error);
                 return;
@@ -115,16 +116,16 @@ mod test {
     /// This test doesn't do anything yet.
     fn test1() {
         with(
-            &[
-                Document::at(User(Pictures(&[])), "1.png", Create::No),
-                Document::at(User(Pictures(&[])), "42-44.png", Create::No),
+            [
+                Document::at(User(Pictures([])), "1.png", Create::No),
+                Document::at(User(Documents([])), "README.txt", Create::AutoRenameIfExists),
                 Document::at(
-                    User(Pictures(&["Movie Trailer"])),
+                    User(Pictures(["Movie Trailer"])),
                     "thumbnail.png",
                     Create::No,
                 )
                 .alias("pic"),
-                Document::at(User(Downloads(&[])), "file.txt", Create::No),
+                Document::at(User(Downloads([])), "file.txt", Create::No),
             ],
             |mut d| {
                 for (alias, doc) in d.clone() {
@@ -145,15 +146,14 @@ mod test {
     /// This test also doesn't do anything yet.
     fn test2() {
         let a: &[&dyn FileSystemEntity] = &[
-            &Document::at(User(Pictures(&[""])), "pic", Create::No),
-            &User(Pictures(&[""])),
-            &Project(Data(&[]).with_id("qualifier", "organization", "application")),
+            &Document::at(User(Pictures([])), "pic", Create::No),
+            &User(Pictures([])),
+            &Project(Data([]).with_id("qualifier", "organization", "application")),
             &PathBuf::new(),
         ];
         for b in a {
             println!(
-                "{:?} {} exist.",
-                b,
+                "{b:?} {} exist.",
                 if b.exists() { "does" } else { "doesn't" }
             );
         }

@@ -8,13 +8,13 @@ use std::{fmt::Debug, path::PathBuf};
 /// ```
 /// fn test2() {
 ///     let a: &[&dyn FileSystemEntity] = &[
-///         &Document::at(User(Pictures(&[""])), "pic", Create::No),
-///         &User(Pictures(&[""])),
-///         &Project(Data(&[]).with_id("qualifier", "organization", "application")),
+///         &Document::at(User(Pictures([])), "pic", Create::No),
+///         &User(Pictures([])),
+///         &Project(Data([]).with_id("qualifier", "organization", "application")),
 ///         &PathBuf::new(),
 ///     ];
 ///     for b in a {
-///         println!("{:?} {} exist.", b, if b.exists() {"does"} else {"doesn't"});
+///         println!("{b:?} {} exist.", if b.exists() {"does"} else {"doesn't"});
 ///     }
 /// }
 /// ```

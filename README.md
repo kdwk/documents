@@ -13,16 +13,16 @@ fn main() {
 
 fn test1() {
     with(
-        &[
-            Document::at(User(Pictures(&[])), "1.png", Create::No),
-            Document::at(User(Pictures(&[])), "42-44.png", Create::No),
+        [
+            Document::at(User(Pictures([])), "1.png", Create::No),
+            Document::at(User(Documents([])), "README.txt", Create::AutoRenameIfExists),
             Document::at(
-                User(Pictures(&["Movie Trailer"])),
+                User(Pictures(["Movie Trailer"])),
                 "thumbnail.png",
                 Create::No,
             )
             .alias("pic"),
-            Document::at(User(Downloads(&[])), "file.txt", Create::No),
+            Document::at(User(Downloads([])), "file.txt", Create::No),
         ],
         |mut d| {
             for (alias, doc) in d.clone() {
@@ -42,9 +42,9 @@ fn test1() {
 
 fn test2() {
     let a: &[&dyn FileSystemEntity] = &[
-        &Document::at(User(Pictures(&[""])), "pic", Create::No),
-        &User(Pictures(&[""])),
-        &Project(Data(&[]).with_id("qualifier", "organization", "application")),
+        &Document::at(User(Pictures([])), "pic", Create::No),
+        &User(Pictures([])),
+        &Project(Data([]).with_id("qualifier", "organization", "application")),
         &PathBuf::new(),
     ];
     for b in a {

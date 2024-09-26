@@ -1,6 +1,7 @@
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
+    usize,
 };
 
 use crate::{DocumentError, FileSystemEntity};
@@ -11,13 +12,13 @@ use crate::{DocumentError, FileSystemEntity};
 ///
 /// e.g.
 ///
-/// `User(Pictures(&[]))`: the user's Pictures folder
+/// `User(Pictures([]))`: the user's Pictures folder
 ///
-/// `Project(Data(&["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data folder, with app ID com.github.kdwk.Spidey (see [Project](Project))
+/// `Project(Data(["Ad Filters"]).with_id("com", "github.kdwk", "Spidey"))`: subfolder "Ad Filters" under the application's data folder, with app ID com.github.kdwk.Spidey (see [Project](Project))
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Folder<'a> {
-    User(User<'a>),
-    Project((Project<'a>, &'a str, &'a str, &'a str)),
+pub enum Folder<'a, const N: usize> {
+    User(User<'a, N>),
+    Project((Project<'a, N>, &'a str, &'a str, &'a str)),
 }
 
 fn join_all(path: &Path, subdirs: &[&str]) -> PathBuf {
@@ -28,7 +29,7 @@ fn join_all(path: &Path, subdirs: &[&str]) -> PathBuf {
     pathbuf
 }
 
-impl<'a> Folder<'a> {
+impl<'a, const N: usize> Folder<'a, N> {
     pub(crate) fn into_pathbuf_result(
         &self,
         filename: impl Display,
@@ -129,23 +130,23 @@ impl<'a> Folder<'a> {
 /// A type that represents well-known user folders.
 ///
 ///```
-/// pub enum User<'a> {
-///     Documents(&'a [&'a str]),
-///     Pictures(&'a [&'a str]),
-///     Videos(&'a [&'a str]),
-///     Downloads(&'a [&'a str]),
-///     Home(&'a [&'a str]),
+/// pub enum User<'a, const N: usize> {
+///     Documents([&'a str; N]),
+///     Pictures([&'a str; N]),
+///     Videos([&'a str; N]),
+///     Downloads([&'a str; N]),
+///     Home([&'a str; N]),
 /// }
 /// ```
 ///
-/// Put subdirectories under the respective folders like so: `Pictures(&["Screenshots", "July", "14"])`.
+/// Put subdirectories under the respective folders like so: `Pictures(["Screenshots", "July", "14"])`.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum User<'a> {
-    Documents(&'a [&'a str]),
-    Pictures(&'a [&'a str]),
-    Videos(&'a [&'a str]),
-    Downloads(&'a [&'a str]),
-    Home(&'a [&'a str]),
+pub enum User<'a, const N: usize> {
+    Documents([&'a str; N]),
+    Pictures([&'a str; N]),
+    Videos([&'a str; N]),
+    Downloads([&'a str; N]),
+    Home([&'a str; N]),
 }
 
 /// A type that represents the application's project folder. An isolated folder is usually provided per app per user by the operating system for apps to put internal files.
@@ -155,18 +156,18 @@ pub enum User<'a> {
 ///
 /// Note: use this type with [`.with_id(...)`](Project::with_id) to let [`with`](with) get the folder which is assigned to your app by the operating system.
 ///
-/// Put subdirectories under the respective folders like so: `Data(&["Ad Filters", "English"])`
+/// Put subdirectories under the respective folders like so: `Data(["Ad Filters", "English"])`
 ///
 /// *Config*: place configuration files here, such as app settings.
 ///
 /// *Data*: place data files here, such as a web browser's adblock filters.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Project<'a> {
-    Config(&'a [&'a str]),
-    Data(&'a [&'a str]),
+pub enum Project<'a, const N: usize> {
+    Config([&'a str; N]),
+    Data([&'a str; N]),
 }
 
-impl<'a> Project<'a> {
+impl<'a, const N: usize> Project<'a, N> {
     /// The app ID should have the reverse-DNS format of "com.example.App", where "com" is the qualifier, "example" is the organization and "App" is the app's name.
     ///
     /// Note: this app ID should be the same app ID you provide to the operating system to uniquely identify your app.
@@ -181,7 +182,7 @@ impl<'a> Project<'a> {
     }
 }
 
-impl<'a> FileSystemEntity for Folder<'a> {
+impl<'a, const N: usize> FileSystemEntity for Folder<'a, N> {
     fn exists(&self) -> bool {
         self.into_pathbuf_result("").unwrap_or_default().exists()
     }

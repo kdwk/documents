@@ -4,13 +4,15 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::Document;
 
 /// A type that wraps a HashMap between a String and Documents. Access the Documents with any type of index that can be converted to a String.
 ///
 /// An instance of this type is provided by [`with`](with) containing all of the [`Document`](Document)s
 /// given in the `documents` parameter as the values, and their respective [`alias`](Document::alias)es as keys.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DocumentMap(pub(crate) HashMap<String, Document>);
 
 impl<'a, Str> Index<Str> for DocumentMap

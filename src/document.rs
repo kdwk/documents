@@ -2,6 +2,7 @@ use core::fmt::Debug;
 use core::str;
 use extend::ext;
 use open;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File, OpenOptions};
@@ -19,7 +20,7 @@ use crate::{Create, DocumentError, FileSystemEntity, Folder, Mode};
 ///
 /// Note: a Document is not the actual file. Creating an instance of this type will not create a new file.
 /// To specify whether to do so, use the `create` parameter of [`Document::at`](Document::at) or [`Document::at_path`](Document::at_path).
-#[derive(Clone, PartialEq, Hash, Debug)]
+#[derive(Clone, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct Document {
     /// The alias of this Document in a [`DocumentMap`](DocumentMap), used to retrieve this Document from the DocumentMap.
     pub(crate) alias: String,
@@ -155,8 +156,8 @@ impl Document {
 
     /// Create an instance of [`Document`](Document) from a [`Folder`](Folder) location.
     ///
-    /// *location*: the [`Folder`](Folder) which the file is in, e.g. `User(Pictures(&["Screenshots"]))` or
-    /// `Project(Data(&[])).with_id("com", "github.kdwk", "Spidey")`.
+    /// *location*: the [`Folder`](Folder) which the file is in, e.g. `User(Pictures(["Screenshots"]))` or
+    /// `Project(Data([])).with_id("com", "github.kdwk", "Spidey")`.
     ///
     /// *filename*: the name of the file with its file extension. Provide anything that can be converted to a string:
     /// a [`String`](std::string::String) (`String::new("example")`) or &str (`"example"`) --- anything goes.
@@ -168,8 +169,8 @@ impl Document {
     /// The `filename` will be used as the [`alias`](Document::alias) of this Document. Change it with `.alias()`.
     ///
     /// If the file does not exist, or if the create policy cannot be carried out, this function will return an error.
-    pub fn at(
-        location: Folder,
+    pub fn at<const N: usize>(
+        location: Folder<N>,
         filename: impl Display,
         create: Create,
     ) -> Result<Self, Box<dyn Error>> {
