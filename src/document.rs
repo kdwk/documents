@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File, OpenOptions};
-use std::io::{BufRead, BufReader, Lines, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Lines, Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::{Create, DocumentError, FileSystemEntity, Folder, Mode};
@@ -251,8 +251,8 @@ impl Document {
     ///
     /// Returns an error if the file cannot be opened or the write operation fails.
     pub fn append(&mut self, content: &[u8]) -> Result<&mut Self, Box<dyn Error>> {
-        let mut file = self.open_file(Mode::Append)?;
-        file.write_all(content)?;
+        let file = self.open_file(Mode::Append)?;
+        BufWriter::new(file).write_all(content)?;
         Ok(self)
     }
 
@@ -265,8 +265,8 @@ impl Document {
     ///
     /// Returns an error if the file cannot be opened or the write operation fails.
     pub fn replace_with(&mut self, content: &[u8]) -> Result<&mut Self, Box<dyn Error>> {
-        let mut file = self.open_file(Mode::Replace)?;
-        file.write_all(content)?;
+        let file = self.open_file(Mode::Replace)?;
+        BufWriter::new(file).write_all(content)?;
         Ok(self)
     }
 
